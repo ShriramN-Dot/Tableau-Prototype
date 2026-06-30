@@ -1,0 +1,1576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tableau WhyLab — AI 5-Whys Investigation Playground (Prototype)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --t-blue:        #1F76B4;
+      --t-blue-dark:   #0b5f94;
+      --t-blue-light:  #E8F2FA;
+      --t-orange:      #E8711B;
+      --t-teal:        #3E9C9C;
+      --t-red:         #C63A3A;
+      --t-green:       #3E8C55;
+      --t-purple:      #7B5EA7;
+      --bg:            #EFEFEF;
+      --card:          #FFFFFF;
+      --border:        #D5D5D5;
+      --text:          #1E1E1E;
+      --text-2:        #6B6B6B;
+      --text-3:        #A0A0A0;
+      --hdr:           52px;
+      --flt:           44px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      overflow-x: hidden;
+    }
+
+    /* ── HEADER ── */
+    .hdr {
+      background: #1A1A1A;
+      height: var(--hdr);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 14px;
+      position: sticky;
+      top: 0;
+      z-index: 200;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      color: #fff;
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: -.4px;
+    }
+    .logo-box {
+      width: 30px; height: 30px;
+      background: var(--t-blue);
+      border-radius: 5px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 900; font-size: 16px; color: #fff;
+    }
+    .hdr-div { width: 1px; height: 26px; background: #444; }
+    .hdr-info { line-height: 1.3; }
+    .hdr-info .sub { font-size: 10.5px; color: #888; }
+    .hdr-info .name { font-size: 13.5px; color: #fff; font-weight: 600; }
+    .hdr-space { flex: 1; }
+    .hdr-actions { display: flex; align-items: center; gap: 8px; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 6px 12px; border-radius: 4px; border: none;
+      cursor: pointer; font-size: 12px; font-family: inherit; font-weight: 500;
+      transition: all .15s;
+    }
+    .btn-ghost {
+      background: transparent; color: #ccc; border: 1px solid #555;
+    }
+    .btn-ghost:hover { background: #333; color: #fff; }
+    .btn-primary { background: var(--t-blue); color: #fff; }
+    .btn-primary:hover { background: var(--t-blue-dark); }
+    .btn-outline { background: #fff; border: 1px solid var(--border); color: var(--text-2); }
+    .btn-outline:hover { background: #f5f5f5; }
+    .btn-sm { padding: 5px 10px; font-size: 11.5px; }
+
+    .btn-whylab {
+      background: linear-gradient(135deg, #7B5EA7, #4E79A7);
+      color: #fff; font-weight: 700; padding: 7px 14px; font-size: 12.5px;
+    }
+    .btn-whylab:hover {
+      background: linear-gradient(135deg, #6a4d96, #3d6896);
+      box-shadow: 0 3px 14px rgba(78,121,167,.45);
+      transform: translateY(-1px);
+    }
+    .pulse { width: 7px; height: 7px; background: #7FD4A0; border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+
+    .ai-badge {
+      background: linear-gradient(135deg, #7B5EA7, #4E79A7);
+      color: #fff; font-size: 9px; font-weight: 800;
+      padding: 2px 5px; border-radius: 3px; letter-spacing: .5px;
+    }
+    .avatar {
+      width: 28px; height: 28px; background: #4E79A7; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-weight: 700; font-size: 11px; cursor: pointer;
+    }
+
+    /* ── FILTER BAR ── */
+    .flt-bar {
+      background: #fff;
+      border-bottom: 1px solid var(--border);
+      height: var(--flt);
+      display: flex; align-items: center;
+      padding: 0 16px; gap: 10px;
+    }
+    .flt-label { font-size: 10.5px; color: var(--text-2); font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+    .flt-select {
+      height: 28px; padding: 0 8px;
+      border: 1px solid #C5C5C5; border-radius: 3px;
+      font-size: 12px; font-family: inherit; color: var(--text);
+      background: #fff; cursor: pointer; min-width: 130px;
+    }
+    .seg-group { display: flex; border: 1px solid #C5C5C5; border-radius: 3px; overflow: hidden; }
+    .seg-btn {
+      padding: 5px 12px; font-size: 11.5px;
+      border: none; border-right: 1px solid #C5C5C5;
+      background: #fff; cursor: pointer; font-family: inherit; color: var(--text-2);
+      transition: all .15s;
+    }
+    .seg-btn:last-child { border-right: none; }
+    .seg-btn.active { background: var(--t-blue); color: #fff; font-weight: 600; }
+    .seg-btn:hover:not(.active) { background: #F5F5F5; }
+    .flt-space { flex: 1; }
+    .freshness { font-size: 11px; color: var(--text-3); }
+    .live-dot { color: var(--t-green); font-weight: 600; }
+
+    /* ── LAYOUT ── */
+    .layout {
+      display: flex;
+      height: calc(100vh - var(--hdr) - var(--flt));
+      overflow: hidden;
+    }
+
+    /* ── DASHBOARD ── */
+    .dash {
+      flex: 1; overflow-y: auto;
+      padding: 12px; display: flex; flex-direction: column; gap: 10px;
+    }
+    .kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
+    .kpi {
+      background: var(--card); border: 1px solid var(--border); border-radius: 4px;
+      padding: 14px 16px; position: relative; overflow: hidden;
+    }
+    .kpi::before {
+      content:''; position:absolute; top:0; left:0; width:100%; height:3px;
+    }
+    .kpi.blue::before  { background: var(--t-blue); }
+    .kpi.red::before   { background: var(--t-red); }
+    .kpi.green::before { background: var(--t-green); }
+    .kpi.org::before   { background: var(--t-orange); }
+    .kpi-label { font-size: 10.5px; color: var(--text-2); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+    .kpi-val { font-size: 26px; font-weight: 700; line-height: 1; margin-bottom: 4px; }
+    .kpi-delta { font-size: 11.5px; }
+    .kpi-delta.neg { color: var(--t-red); }
+    .kpi-delta.pos { color: var(--t-green); }
+
+    .row-2 { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
+    .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+    .card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 4px;
+      padding: 14px 16px;
+    }
+    .card-hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+    .card-title { font-size: 12.5px; font-weight: 600; }
+    .card-sub { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+    .card-actions { display: flex; gap: 4px; }
+    .ca-btn {
+      width: 24px; height: 24px; border-radius: 3px; border: 1px solid var(--border);
+      background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      font-size: 12px; color: var(--text-3);
+    }
+    .ca-btn:hover { background: #f5f5f5; color: var(--text); }
+    .ca-btn.why { color: var(--t-purple); border-color: var(--t-purple); font-weight: 700; }
+    .anomaly-note {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: #FFF0F0; border: 1px solid #F0C0C0; border-radius: 4px;
+      padding: 4px 8px; font-size: 11px; color: var(--t-red); margin-bottom: 8px;
+    }
+
+    /* ── WHYLAB PANEL ── */
+    .wl-panel {
+      width: 0; overflow: hidden;
+      transition: width .3s ease;
+      background: #fff;
+      border-left: 1px solid var(--border);
+      display: flex; flex-direction: column;
+    }
+    .wl-panel.open { width: 460px; }
+
+    .wl-inner {
+      width: 460px; height: 100%;
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+
+    /* Panel header */
+    .wl-hdr {
+      padding: 14px 16px;
+      background: linear-gradient(135deg, #7B5EA7, #4E79A7);
+      color: #fff; flex-shrink: 0;
+    }
+    .wl-hdr-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .wl-title { display: flex; align-items: center; gap: 9px; font-size: 16px; font-weight: 800; }
+    .wl-badge { background: rgba(255,255,255,.25); border-radius: 10px; padding: 2px 9px; font-size: 10px; font-weight: 700; }
+    .wl-sub { font-size: 11.5px; opacity: .85; }
+    .x-btn {
+      background: rgba(255,255,255,.2); border: none; color: #fff;
+      width: 26px; height: 26px; border-radius: 4px; cursor: pointer; font-size: 14px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .x-btn:hover { background: rgba(255,255,255,.35); }
+
+    /* Industry selector */
+    .ind-sel { padding: 10px 16px; background: #FAFAFA; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .ind-label { font-size: 10.5px; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+    .ind-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+    .ind-pill {
+      padding: 4px 11px; border-radius: 12px; border: 1px solid #D5D5D5;
+      font-size: 11.5px; cursor: pointer; transition: all .15s; background: #fff; color: var(--text-2);
+    }
+    .ind-pill.active { border-color: var(--t-blue); background: var(--t-blue-light); color: var(--t-blue); font-weight: 700; }
+    .ind-pill:hover:not(.active) { background: #f0f0f0; }
+
+    /* Input */
+    .wl-inp-wrap { padding: 10px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .inp-box {
+      display: flex; gap: 8px; background: #fff;
+      border: 1.5px solid #C5C5C5; border-radius: 6px; padding: 8px 10px;
+      transition: border-color .15s;
+    }
+    .inp-box:focus-within { border-color: var(--t-blue); }
+    .wl-inp {
+      flex: 1; border: none; outline: none; font-size: 13px; font-family: inherit; color: var(--text);
+    }
+    .wl-inp::placeholder { color: #B8B8B8; }
+    .ask-btn { background: var(--t-blue); color: #fff; border: none; border-radius: 4px; padding: 5px 13px; font-size: 12px; cursor: pointer; font-family: inherit; font-weight: 700; }
+    .ask-btn:hover { background: var(--t-blue-dark); }
+
+    /* Tabs */
+    .wl-tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .wl-tab {
+      padding: 8px 16px; font-size: 12px; border: none; background: none; cursor: pointer;
+      font-family: inherit; color: var(--text-2); border-bottom: 2px solid transparent; transition: all .15s;
+    }
+    .wl-tab.active { color: var(--t-blue); border-bottom-color: var(--t-blue); font-weight: 600; }
+    .wl-tab:hover:not(.active) { background: #f8f8f8; }
+
+    /* Investigation scroll area */
+    .wl-scroll { flex: 1; overflow-y: auto; }
+
+    /* Investigation content */
+    .ctx-banner {
+      margin: 12px 16px 0;
+      background: #F8F4FF; border: 1px solid #DDD0F0; border-radius: 6px;
+      padding: 10px 12px; font-size: 11.5px; color: #5A4080;
+    }
+    .ctx-banner strong { display: block; margin-bottom: 3px; font-size: 12px; }
+
+    .progress-wrap { padding: 8px 16px; }
+    .progress-bg { height: 3px; background: #E8E8E8; border-radius: 2px; overflow: hidden; }
+    .progress-bar { height: 100%; background: linear-gradient(90deg,#7B5EA7,#4E79A7); border-radius: 2px; transition: width .5s ease; }
+
+    .why-steps { padding: 4px 16px 12px; }
+    .why-step { margin-bottom: 14px; opacity: 0; transform: translateY(8px); transition: all .4s ease; }
+    .why-step.show { opacity: 1; transform: translateY(0); }
+    .why-step-hdr { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .why-num {
+      width: 24px; height: 24px; background: var(--t-blue); color: #fff;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 800; flex-shrink: 0;
+    }
+    .why-q { font-size: 11.5px; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: .4px; }
+    .why-body {
+      background: #F8F9FA; border-radius: 6px; padding: 10px 12px;
+      border-left: 3px solid var(--t-blue); margin-left: 32px;
+    }
+    .why-body.causal { border-left-color: var(--t-orange); }
+    .why-body.root { border-left-color: var(--t-red); background: #FFF5F5; }
+    .why-ans { font-size: 12.5px; line-height: 1.55; color: var(--text); margin-bottom: 7px; }
+    .why-stat {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: #fff; border: 1px solid var(--border); border-radius: 4px;
+      padding: 3px 8px; font-size: 11px; font-weight: 700; color: var(--t-blue);
+      margin: 2px 2px 2px 0;
+    }
+    .why-stat.neg { color: var(--t-red); }
+    .why-stat.pos { color: var(--t-green); }
+
+    .ev-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; margin-top: 8px; margin-bottom: 3px; }
+    .ev-label.obs { color: var(--t-blue); }
+    .ev-label.like { color: var(--t-orange); }
+    .ev-label.miss { color: var(--text-3); }
+    .ev-item { font-size: 11.5px; color: var(--text-2); padding-left: 12px; position: relative; line-height: 1.5; }
+    .ev-item::before { content:'•'; position:absolute; left:2px; }
+
+    /* Suggested questions */
+    .sug-wrap { padding: 4px 16px 14px; }
+    .sug-label { font-size: 10.5px; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 7px; }
+    .sug-q {
+      display: block; width: 100%; text-align: left;
+      padding: 7px 10px; margin-bottom: 4px;
+      background: #F8F9FA; border: 1px solid #E5E5E5; border-radius: 4px;
+      font-size: 12px; color: var(--t-blue); cursor: pointer; font-family: inherit; transition: all .15s;
+    }
+    .sug-q:hover { background: var(--t-blue-light); border-color: var(--t-blue); }
+
+    /* Private notes */
+    .pnotes { border-top: 1px solid var(--border); padding: 12px 16px; flex-shrink: 0; background: #FAFAFA; }
+    .pnotes-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .pnotes-title { font-size: 12px; font-weight: 700; color: var(--text-2); display: flex; align-items: center; gap: 6px; }
+    .pnotes-sub { font-size: 10.5px; font-weight: 400; color: var(--text-3); }
+    .pinned-list { margin-bottom: 6px; }
+    .pinned-item {
+      display: flex; align-items: flex-start; gap: 6px;
+      padding: 6px 8px; background: #FFF8E6; border: 1px solid #F0E0B0; border-radius: 4px;
+      margin-bottom: 4px; font-size: 11.5px; color: #7A5C00;
+    }
+    .pnotes-ta {
+      width: 100%; border: 1px solid #D5D5D5; border-radius: 4px;
+      padding: 8px; font-size: 12px; font-family: inherit; resize: none; height: 64px;
+      color: var(--text); background: #fff;
+    }
+    .pnotes-ta:focus { outline: none; border-color: var(--t-blue); }
+    .notes-btns { display: flex; gap: 6px; margin-top: 8px; }
+
+    /* Typing cursor */
+    .cur { display: inline-block; width: 2px; height: 13px; background: var(--t-blue); animation: blink 1s infinite; vertical-align: middle; margin-left: 2px; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    /* Loading dots */
+    .ld { display: flex; gap: 5px; padding: 8px 0; }
+    .ld span { width: 7px; height: 7px; background: var(--t-blue); border-radius: 50%; animation: ldB 1.2s infinite; }
+    .ld span:nth-child(2) { animation-delay: .2s; }
+    .ld span:nth-child(3) { animation-delay: .4s; }
+    @keyframes ldB { 0%,80%,100%{transform:translateY(0);opacity:.4} 40%{transform:translateY(-7px);opacity:1} }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 20px; right: 20px;
+      background: #1A1A1A; color: #fff; padding: 10px 16px; border-radius: 6px;
+      font-size: 12.5px; display: flex; align-items: center; gap: 8px; z-index: 9999;
+      opacity: 0; transform: translateY(10px); transition: all .3s;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    /* Empty state */
+    .empty-state { padding: 24px 16px; text-align: center; color: var(--text-3); }
+    .empty-icon { font-size: 36px; margin-bottom: 12px; }
+    .empty-title { font-size: 13px; font-weight: 700; color: var(--text-2); margin-bottom: 6px; }
+    .empty-body { font-size: 12px; line-height: 1.55; }
+
+    /* ── PLAYGROUND CARDS ── */
+    .pg-toolbar {
+      padding: 9px 16px; background: #F0F4FF;
+      border-bottom: 1px solid #D0DAF5; display: flex; align-items: center; gap: 8px;
+      font-size: 11px; color: #4A5588; flex-shrink: 0;
+    }
+    .pg-toolbar strong { font-weight: 700; }
+    .pg-body { padding: 12px 16px 16px; }
+    .pg-card {
+      background: #fff; border: 1px solid var(--border); border-radius: 6px;
+      margin-bottom: 12px; overflow: hidden;
+      opacity: 0; transform: translateY(10px); transition: all .35s ease;
+    }
+    .pg-card.show { opacity: 1; transform: translateY(0); }
+    .pg-card-hdr {
+      padding: 9px 12px 6px; display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid #F0F0F0;
+    }
+    .pg-card-title { font-size: 11.5px; font-weight: 700; color: var(--text); }
+    .pg-card-meta { font-size: 10px; color: var(--text-3); }
+    .pg-canvas-wrap { padding: 10px 12px 6px; }
+    .pg-obs {
+      margin: 0 10px 10px;
+      background: linear-gradient(135deg, #F7F4FF, #EEF4FF);
+      border: 1px solid #D6CCF0; border-radius: 4px;
+      padding: 8px 10px; font-size: 11.5px; line-height: 1.55; color: #3A3060; min-height: 24px;
+    }
+    .pg-obs-lbl { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: #7B5EA7; margin-bottom: 4px; }
+    .pg-actions { display: flex; gap: 5px; padding: 0 10px 10px; }
+    .pg-add-btn { background: #fff; border: 1px solid #D5D5D5; border-radius: 3px; padding: 4px 9px; font-size: 11px; cursor: pointer; font-family: inherit; color: var(--text-2); }
+    .pg-add-btn:hover { background: #F5F5F5; }
+    .pg-add-btn.hi { border-color: var(--t-purple); color: var(--t-purple); }
+    .pg-add-btn.hi:hover { background: #F7F4FF; }
+    .pg-more { margin-top: 4px; }
+    .pg-more-label { font-size: 10.5px; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 7px; }
+
+    /* Scrollbar */
+    .wl-scroll::-webkit-scrollbar { width: 5px; }
+    .wl-scroll::-webkit-scrollbar-track { background: transparent; }
+    .wl-scroll::-webkit-scrollbar-thumb { background: #D0D0D0; border-radius: 3px; }
+
+    /* Prototype watermark */
+    .watermark {
+      position: fixed; bottom: 58px; right: 22px;
+      font-size: 10px; color: #C0C0C0; pointer-events: none; z-index: 50;
+      letter-spacing: .3px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════ HEADER ══════════════════════════════ -->
+<header class="hdr">
+  <div class="logo">
+    <div class="logo-box">T</div>
+    <span>Tableau</span>
+  </div>
+  <div class="hdr-div"></div>
+  <div class="hdr-info">
+    <div class="sub">My Company / Sales &amp; Revenue</div>
+    <div class="name">Executive Sales Dashboard — FY 2024</div>
+  </div>
+  <div class="hdr-space"></div>
+  <div class="hdr-actions">
+    <button class="btn btn-ghost" onclick="showToast('Comments panel coming soon')">
+      💬 Comments
+      <span style="background:#E05252;color:#fff;border-radius:8px;padding:1px 6px;font-size:10px">3</span>
+    </button>
+    <button class="btn btn-ghost" onclick="showToast('Share link copied')">↗ Share</button>
+    <button class="btn btn-whylab" id="wlBtn" onclick="toggleWhyLab()">
+      <span class="pulse"></span>
+      WhyLab <span class="ai-badge">AI</span>
+    </button>
+    <div class="avatar">JD</div>
+  </div>
+</header>
+
+<!-- ══════════════════════════════ FILTER BAR ══════════════════════════════ -->
+<div class="flt-bar">
+  <span class="flt-label">Filters</span>
+  <select class="flt-select" onchange="showToast('Dashboard refreshed')">
+    <option>All Regions</option>
+    <option>North America</option>
+    <option>Europe</option>
+    <option>APAC</option>
+    <option>Latin America</option>
+  </select>
+  <select class="flt-select" onchange="showToast('Dashboard refreshed')">
+    <option>All Segments</option>
+    <option>Enterprise</option>
+    <option>Mid-Market</option>
+    <option>SMB</option>
+  </select>
+  <select class="flt-select">
+    <option>FY 2024</option>
+    <option>Q4 2024</option>
+    <option>Q3 2024</option>
+    <option>YTD</option>
+  </select>
+  <div class="seg-group" id="dashSegGroup">
+    <button class="seg-btn active" onclick="switchDashSeg('sales',this)">Sales</button>
+    <button class="seg-btn" onclick="switchDashSeg('finance',this)">Finance</button>
+    <button class="seg-btn" onclick="switchDashSeg('healthcare',this)">Healthcare</button>
+    <button class="seg-btn" onclick="switchDashSeg('retail',this)">Retail</button>
+  </div>
+  <div class="flt-space"></div>
+  <span class="freshness">Last updated: Today, 8:34 AM &nbsp;·&nbsp; <span class="live-dot">● Live</span></span>
+</div>
+
+<!-- ══════════════════════════════ MAIN LAYOUT ══════════════════════════════ -->
+<div class="layout">
+
+  <!-- ── DASHBOARD ── -->
+  <div class="dash" id="dash">
+
+    <!-- KPI Row -->
+    <div class="kpi-row">
+      <div class="kpi blue">
+        <div class="kpi-label">Total Revenue</div>
+        <div class="kpi-val">$42.7M</div>
+        <div class="kpi-delta neg">▼ 8.3% vs Prior Year</div>
+      </div>
+      <div class="kpi red">
+        <div class="kpi-label">Q4 Revenue</div>
+        <div class="kpi-val">$8.9M</div>
+        <div class="kpi-delta neg">▼ 18.2% vs Q4 Prior Year</div>
+      </div>
+      <div class="kpi green">
+        <div class="kpi-label">New Customers</div>
+        <div class="kpi-val">847</div>
+        <div class="kpi-delta pos">▲ 4.1% vs Prior Year</div>
+      </div>
+      <div class="kpi org">
+        <div class="kpi-label">Target Attainment</div>
+        <div class="kpi-val">84.6%</div>
+        <div class="kpi-delta neg">▼ 15.4 pts below target</div>
+      </div>
+    </div>
+
+    <!-- Main charts -->
+    <div class="row-2">
+      <div class="card">
+        <div class="card-hdr">
+          <div>
+            <div class="card-title">Revenue Trend — Monthly FY 2024</div>
+            <div class="card-sub">Monthly revenue vs prior year · Q4 anomaly detected</div>
+          </div>
+          <div class="card-actions">
+            <button class="ca-btn" title="Drill down">⬇</button>
+            <button class="ca-btn" title="Expand">⤢</button>
+            <button class="ca-btn why" title="Investigate with WhyLab" onclick="toggleWhyLab()">?</button>
+          </div>
+        </div>
+        <div class="anomaly-note">⚠ Anomaly · Q4 revenue 18.2% below historical seasonal trend — click <strong>WhyLab</strong> to investigate</div>
+        <div style="position:relative;height:218px">
+          <canvas id="cTrend"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hdr">
+          <div>
+            <div class="card-title">Revenue by Region</div>
+            <div class="card-sub">FY 2024 vs FY 2023</div>
+          </div>
+          <div class="card-actions"><button class="ca-btn">⤢</button></div>
+        </div>
+        <div style="position:relative;height:232px">
+          <canvas id="cRegion"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Secondary charts -->
+    <div class="row-3">
+      <div class="card">
+        <div class="card-hdr">
+          <div>
+            <div class="card-title">Customer Segment</div>
+            <div class="card-sub">Revenue share &amp; YoY delta</div>
+          </div>
+        </div>
+        <div style="position:relative;height:158px">
+          <canvas id="cSegment"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hdr">
+          <div>
+            <div class="card-title">Win Rate &amp; Pipeline</div>
+            <div class="card-sub">Quarterly trend</div>
+          </div>
+        </div>
+        <div style="position:relative;height:158px">
+          <canvas id="cWinrate"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hdr">
+          <div>
+            <div class="card-title">Product Mix</div>
+            <div class="card-sub">Revenue by product line</div>
+          </div>
+        </div>
+        <div style="position:relative;height:158px">
+          <canvas id="cProduct"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /dash -->
+
+  <!-- ══════════════════════════════ WHYLAB PANEL ══════════════════════════════ -->
+  <div class="wl-panel" id="wlPanel">
+    <div class="wl-inner">
+
+      <!-- Panel header -->
+      <div class="wl-hdr">
+        <div class="wl-hdr-top">
+          <div class="wl-title">
+            🔍 WhyLab
+            <span class="wl-badge">Private Workspace</span>
+          </div>
+          <button class="x-btn" onclick="toggleWhyLab()">✕</button>
+        </div>
+        <div class="wl-sub">AI-powered root cause investigation · Only visible to you</div>
+      </div>
+
+      <!-- Industry context -->
+      <div class="ind-sel">
+        <div class="ind-label">Analysis context</div>
+        <div class="ind-pills">
+          <button class="ind-pill active" id="pill-sales"       onclick="switchPanelInd('sales',this)">📊 Sales</button>
+          <button class="ind-pill"        id="pill-finance"     onclick="switchPanelInd('finance',this)">💰 Finance / FP&amp;A</button>
+          <button class="ind-pill"        id="pill-healthcare"  onclick="switchPanelInd('healthcare',this)">🏥 Healthcare</button>
+          <button class="ind-pill"        id="pill-retail"      onclick="switchPanelInd('retail',this)">🛒 Retail</button>
+        </div>
+      </div>
+
+      <!-- Question input -->
+      <div class="wl-inp-wrap">
+        <div class="inp-box">
+          <input type="text" class="wl-inp" id="wlInput"
+                 placeholder="Ask why… e.g. Why did sales decline in Q4?"
+                 value="Why did sales decline in Q4 2024?"
+                 onkeydown="if(event.key==='Enter')startInv()">
+          <button class="ask-btn" onclick="startInv()">Ask</button>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="wl-tabs">
+        <button class="wl-tab active" id="tab-inv"   onclick="switchTab('inv',this)">5-Whys Investigation</button>
+        <button class="wl-tab"        id="tab-play"  onclick="switchTab('play',this)">My Playground</button>
+        <button class="wl-tab"        id="tab-hist"  onclick="switchTab('hist',this)">History</button>
+      </div>
+
+      <!-- Scrollable investigation area -->
+      <div class="wl-scroll" id="wlScroll">
+        <div class="empty-state">
+          <div class="empty-icon">🔍</div>
+          <div class="empty-title">AI Investigation Ready</div>
+          <div class="empty-body">Click <strong>Ask</strong> to run a 5-Whys root cause analysis on the current dashboard context.<br><br>Switch the industry context above to tailor the AI's reasoning framework.</div>
+        </div>
+      </div>
+
+      <!-- Private notes (always pinned to bottom) -->
+      <div class="pnotes">
+        <div class="pnotes-hdr">
+          <div class="pnotes-title">🔒 Private Notes <span class="pnotes-sub">&nbsp;only you see this</span></div>
+          <span class="ai-badge">Auto-saved</span>
+        </div>
+        <div id="pinnedList" class="pinned-list"></div>
+        <textarea class="pnotes-ta" id="pNotesTA" placeholder="Jot hypotheses, observations, or next steps…"></textarea>
+        <div class="notes-btns">
+          <button class="btn btn-outline btn-sm" onclick="pinInsight()">📌 Pin top insight</button>
+          <button class="btn btn-outline btn-sm" onclick="showToast('Summary exported to clipboard')">↗ Export</button>
+          <button class="btn btn-primary btn-sm" onclick="showToast('Promoted to team comment thread')">💬 Share to team</button>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /wl-panel -->
+
+</div><!-- /layout -->
+
+<div class="toast" id="toast"></div>
+<div class="watermark">Prototype · Tableau WhyLab Concept</div>
+
+<!-- ══════════════════════════════ SCRIPTS ══════════════════════════════ -->
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// DATA
+// ─────────────────────────────────────────────────────────────────────────────
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const SALES_24 = [245,267,289,298,312,285,294,310,301,275,248,220];
+const SALES_23 = [232,248,260,278,295,272,285,298,292,305,315,298];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INVESTIGATION DEFINITIONS (4 industries)
+// ─────────────────────────────────────────────────────────────────────────────
+const INV = {
+  sales: {
+    ctx: 'Context: Revenue Trend · Q4 2024 · All Regions · All Segments',
+    q:   'Why did sales decline in Q4 2024?',
+    steps: [
+      { q:'What changed?',              type:'',       ans:'Revenue declined $1.9M (18.2%) in Q4 2024 versus Q4 2023. Historically Q4 is your strongest quarter (+12% seasonal bump). This reversal is statistically significant — a 3-sigma event against the last 5 years of Q4 data.', stats:['-$1.9M Q4 revenue','-18.2% YoY','5-yr seasonal average: +12%'] },
+      { q:'When did it happen?',        type:'',       ans:'The decline became significant starting Week 40 (early October). Revenue was tracking on plan through end of September. The steepest single-week drop was Week 44 (first week of November), coinciding with the end-of-quarter enterprise push.', stats:['Week 40 onset','Week 44 peak decline','Sep: on-plan at 99%'] },
+      { q:'Where did it happen?',       type:'',       ans:'North America accounts for 71% of the Q4 decline ($1.35M of $1.9M total). Europe was essentially flat (−1.8%). APAC grew 4.1%. This is not a global demand issue — it is a North America execution problem.', stats:['North America: −$1.35M (71%)','Europe: −$0.2M (flat)','APAC: +$0.14M (growing)'] },
+      { q:'Which segment drove it?',    type:'causal', ans:'Enterprise accounts for 82% of the North America decline. Enterprise renewal rate collapsed from 87% to 71% in Q4 (−16 points). Mid-Market was flat. SMB grew 8%, confirming the product remains competitive — this is an Enterprise-specific issue.', stats:['Enterprise renewal: 87% → 71%','34 Enterprise deals slipped to Q1','SMB +8% — product still competitive'] },
+      { q:'What is the root cause?',    type:'root',   ans:'Three correlated root causes: (1) A new discount-approval policy tripled cycle time from 4 to 16 days, directly causing deal slippage into Q1. (2) Two senior Enterprise AEs in the West region resigned in September, leaving 28% of Enterprise accounts without coverage. (3) A primary competitor launched aggressive Enterprise renewal pricing on Oct 3rd.', stats:['Approval cycle: 4d → 16d','2 AE departures (Sep)','Competitor pricing event: Oct 3'],
+        evidence: {
+          obs:  ['Renewal rate decline is statistically significant across Enterprise accounts','Deal slippage to Q1 is documented in CRM; 34 deals with prior-year close dates moved forward'],
+          like: ['Approval cycle delay is temporally correlated with slippage onset (r=0.91)','AE departure region accounts for 44% of Enterprise NA miss'],
+          miss: ['Individual customer-stated churn reason not yet captured','Competitor pricing sheet not available — estimate based on customer conversations']
+        }
+      },
+    ],
+    sug: ['What is the Q1 revenue risk from the 34 slipped deals?','Which Enterprise accounts are at highest churn risk?','How does our renewal price compare to the competitor offer?']
+  },
+
+  finance: {
+    ctx: 'Context: P&L Variance Analysis · FY 2024 vs Budget · All cost centers',
+    q:   'Why did we miss our revenue budget?',
+    steps: [
+      { q:'What is the overall variance?',   type:'',       ans:'Total revenue missed budget by $6.8M (−15.4%). Operating margin compressed 340 basis points below plan. EBITDA landed at $7.2M vs $9.8M budget — a $2.6M shortfall. This is the largest budget miss in 6 quarters.', stats:['-$6.8M vs budget','-340 bps operating margin','EBITDA: $7.2M vs $9.8M plan'] },
+      { q:'Is it revenue or cost?',          type:'',       ans:'Primarily revenue-driven. The revenue shortfall is $5.2M. Costs ran $1.6M over budget, mostly from delayed headcount attrition (+18 FTEs versus plan). The cost overrun is manageable. The revenue miss is the structural issue.', stats:['Revenue shortfall: $5.2M','Cost overrun: $1.6M','Headcount: +18 FTEs vs plan'] },
+      { q:'Is it volume, price, or mix?',    type:'',       ans:'Mix is responsible for 58% of margin compression. Software revenue (high margin: ~72% gross) declined 7% vs plan. Professional Services (lower margin: ~38% gross) grew 18% vs plan. Price held — discounting was within 1% of plan. Volume was modestly below plan (−4%).', stats:['Mix impact: −230 bps','Software vs plan: −7%','Services vs plan: +18%'] },
+      { q:'Which business unit / cost center?', type:'causal', ans:'North America Enterprise accounts for $3.8M of the $5.2M revenue miss. Other BUs are within ±4% of plan and considered immaterial. FP&A flagged North America Enterprise risk in the Q3 close commentary, but no corrective action was taken before the Q4 renewal cycle.', stats:['NA Enterprise: $3.8M miss (73%)','Other BUs: within ±4% of plan','FP&A Q3 flag: not actioned'] },
+      { q:'Is this recurring or one-time?',  type:'root',   ans:'Partially structural. The software-to-services mix shift is a 3-year trend that will continue compressing gross margin unless software growth is reignited. The deal slippage was partly one-time, but the approval-cycle issue that caused it has not been resolved. FY 2025 guidance should reflect a 150–200 bps margin headwind if the mix trend continues.', stats:['Mix shift: ongoing structural risk','Deal slippage: ~60% one-time','FY25 margin headwind: 150–200 bps est.'],
+        evidence: {
+          obs:  ['Mix shift has compressed gross margin by 180 bps per year over 3 years','Software bookings vs plan miss is corroborated in CRM pipeline data'],
+          like: ['Approval cycle delay is a policy change — reversible if priority is set','Mix normalization would require Enterprise software growth of ~15%'],
+          miss: ['FY25 budget assumptions not yet finalized — range of outcomes is wide','Competitor pricing impact on software renewal rate not quantified']
+        }
+      },
+    ],
+    sug: ['Model FY25 margin under three mix-shift scenarios','What is the cost of restoring approval-cycle SLA to 4 days?','Which cost centers have flexibility to offset revenue risk?']
+  },
+
+  healthcare: {
+    ctx: 'Context: Operational metrics · All facilities · FY 2024',
+    q:   'Why did average length of stay increase?',
+    steps: [
+      { q:'What changed operationally?',     type:'',       ans:'Average Length of Stay (ALOS) increased 1.4 days across the network versus the prior 12-month baseline. Readmission rate rose from 8.2% to 11.4% (+3.2 pts). Patient satisfaction scores declined 6 points to 78/100. All three metrics degraded in the same time window.', stats:['ALOS: +1.4 days','Readmission: 8.2% → 11.4%','Patient satisfaction: 84 → 78'] },
+      { q:'Which patient cohort?',           type:'',       ans:'Cardiac and pulmonary cases show the largest ALOS increases (+2.1 and +1.8 days respectively). Readmissions are concentrated in patients discharged Friday–Saturday: 71% of avoidable readmissions occurred on weekend discharges. Elective surgical cases are unaffected.', stats:['Cardiac ALOS: +2.1 days','71% readmissions = weekend discharges','Elective cases: unaffected'] },
+      { q:'Which facility?',                 type:'',       ans:'Facility B (Northwest Regional) accounts for 63% of the network ALOS increase. Facilities A, C, and D are within ±0.3 days of baseline — considered normal variation. Facility B introduced a staffing model change in September.', stats:['Facility B: 63% of ALOS increase','Facilities A/C/D: within normal range','Staffing change: September 2024'] },
+      { q:'What changed in care delivery?',  type:'causal', ans:'Weekend nursing staff at Facility B was reduced 22% as part of a cost-reduction initiative. Discharge planning specialist coverage dropped from 7 days to 5 days per week. Post-discharge follow-up call completion rate dropped 38%, which is the primary predictor of avoidable readmissions in the literature.', stats:['Weekend nursing: −22%','Discharge planning: 7d → 5d','Follow-up call completion: −38%'] },
+      { q:'What is the clinical and financial impact?', type:'root', ans:'Each avoidable readmission costs approximately $14,200 in direct cost (excluding CMS penalty exposure). The readmission rate increase represents an estimated $2.3M in incremental cost. Current readmission rate (11.4%) is approaching the CMS penalty threshold of 12.0%. If breached, the CMS payment adjustment would add $1.1M in additional cost annually.', stats:['$2.3M incremental readmission cost','CMS threshold: 12.0% (current: 11.4%)','CMS penalty exposure: $1.1M/yr'],
+        evidence: {
+          obs:  ['ALOS and readmission increase are statistically significant (p < 0.01)','Temporal correlation with staffing change is confirmed across 14-week window'],
+          like: ['Discharge planning coverage reduction is a known readmission risk factor','Follow-up call rate is the most actionable lever — literature supports 28% reduction in readmissions'],
+          miss: ['Individual patient acuity change not controlled for in this analysis','Payer mix shift could confound ALOS comparison — requires clinical coding audit']
+        }
+      },
+    ],
+    sug: ['Model the ROI of restoring 7-day discharge planning coverage','Which patients admitted this week are at highest readmission risk?','Compare Facility B staffing model to best-performing Facility A']
+  },
+
+  retail: {
+    ctx: 'Context: Retail performance · All stores + online · Q4 2024',
+    q:   'Why did online revenue decline in Q4?',
+    steps: [
+      { q:'What changed?',                     type:'',       ans:'Total revenue declined 11.3% in Q4. In-store revenue was flat (−1.2%). Online channel revenue declined 24.7%. Since online now represents 38% of total revenue, the online underperformance drove the overall miss. Online had been growing at 22% annually prior to this quarter.', stats:['-11.3% total Q4','-24.7% online','In-store: −1.2% (essentially flat)'] },
+      { q:'Was it traffic or conversion?',     type:'',       ans:'Online traffic was stable (+2.1%). Mobile traffic actually increased 8% YoY. The conversion rate is the problem: overall online conversion dropped from 3.8% to 2.9% (−24%). Add-to-cart rates were stable. Checkout abandonment increased 31% — customers were browsing and selecting but not completing purchases.', stats:['Traffic: +2.1% (not the cause)','Conversion: 3.8% → 2.9% (−24%)','Checkout abandonment: +31%'] },
+      { q:'Which category or SKU?',            type:'',       ans:'Three SKUs in the Home Appliances category account for 61% of the total conversion decline. These three SKUs had out-of-stock rates above 35% during Q4. When the primary SKU is unavailable, customers are not converting to substitute products — they are abandoning the session entirely. Substitute conversion rate is only 12%.', stats:['3 SKUs = 61% of decline','OOS rate: >35%','Substitute conversion: only 12%'] },
+      { q:'What caused the stockout?',         type:'causal', ans:'Demand forecast was 22% below actual demand — the forecast model had not been recalibrated after the prior Q4 viral social media spike. Supplier lead time increased from 18 to 34 days due to a port logistics disruption in October. Reorder points were not updated when lead time changed, so replenishment triggered too late.', stats:['Forecast miss: −22%','Supplier lead time: 18d → 34d','Reorder points: not updated'] },
+      { q:'What is the recovery path?',        type:'root',   ans:'Inventory is expected to be fully replenished by end of December. Revenue recovery potential for Q1 is $1.8–2.4M if demand holds. However, 35% of customers who encountered stockouts purchased from a competitor — customer acquisition cost to recover these buyers is estimated at $48 per customer versus $12 for organic retention.', stats:['Restock ETA: end of December','Q1 recovery potential: $1.8–2.4M','Competitor churn: 35% of affected customers'],
+        evidence: {
+          obs:  ['OOS rates and conversion drop are directly correlated (r=0.94) across the three affected SKUs','Checkout abandonment spike aligns precisely with OOS onset date (Oct 12)'],
+          like: ['Reorder point adjustment is the highest-leverage preventive action','Proactive outreach to churned customers could recover 20–30% at 3× normal CAC'],
+          miss: ['Competitor identity and pricing not confirmed — based on exit survey proxy','Demand forecast recalibration outcome depends on methodology selected']
+        }
+      },
+    ],
+    sug: ['Which other SKUs have similar stockout risk entering Q1?','What is the optimal reorder point given 34-day supplier lead time?','Which churned customers should receive a proactive win-back offer?']
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PLAYGROUND DATA
+// ─────────────────────────────────────────────────────────────────────────────
+const PLAY = {
+  sales: {
+    headline: 'Sales deep-dive · Auto-generated from 5-Whys findings',
+    steps: [
+      {
+        title: 'Enterprise Revenue — 24-Month Trend',
+        meta: 'Pulled from: Revenue Trend chart · filtered to Enterprise',
+        obs: 'Enterprise revenue peaked in May 2024 then declined sharply. Q4 is the steepest two-month drop in the entire 24-month window — not seasonal, and not seen in Mid-Market or SMB.',
+        chartType: 'line',
+        chartData: {
+          labels: ['Jul\'23','Aug','Sep','Oct','Nov','Dec','Jan\'24','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+          datasets: [
+            { label:'Enterprise', data:[310,318,325,338,342,320,328,335,344,358,362,351,345,338,329,281,248,220],
+              borderColor:'#1F76B4', backgroundColor:'rgba(31,118,180,.1)', borderWidth:2, fill:true, tension:.35, pointRadius:0,
+              segment:{ borderColor: ctx => ctx.p0DataIndex >= 14 ? '#C63A3A' : '#1F76B4', backgroundColor: ctx => ctx.p0DataIndex >= 14 ? 'rgba(198,58,58,.1)' : 'rgba(31,118,180,.1)' } },
+            { label:'SMB', data:[82,84,83,87,85,80,82,84,88,91,93,90,91,92,94,96,98,99],
+              borderColor:'#59A14F', borderWidth:1.5, tension:.35, pointRadius:0, fill:false }
+          ]
+        },
+        chartOpts: { scales:{ y:{ ticks:{ callback:v=>v+'K' } } } }
+      },
+      {
+        title: 'North America Weekly Revenue — Q4 Detail',
+        meta: 'Weeks 40–52 · NA region only · anomaly highlighted',
+        obs: 'Week 44 was the single worst week: $0.42M vs $0.71M expected (−41%). This aligns precisely with the approval-cycle bottleneck onset 12 days earlier — the average sales cycle delta.',
+        chartType: 'bar',
+        chartData: {
+          labels: ['W40','W41','W42','W43','W44','W45','W46','W47','W48','W49','W50','W51','W52'],
+          datasets: [{
+            label:'NA Revenue ($K)', borderRadius:3,
+            data:[680,672,658,641,418,445,462,480,491,470,448,432,410],
+            backgroundColor: ['#1F76B4','#1F76B4','#1F76B4','#4E79A7','#C63A3A','#E8A0A0','#E8A0A0','#4E79A7','#4E79A7','#4E79A7','#4E79A7','#4E79A7','#4E79A7']
+          }]
+        },
+        chartOpts: { scales:{ y:{ ticks:{ callback:v=>'$'+v+'K' } } } }
+      },
+      {
+        title: 'Win Rate by Sales Rep — Q3 vs Q4',
+        meta: 'Enterprise segment · North America West region',
+        obs: 'Two reps show 0% Q4 win rate — these are the seats vacated by September attrition. Their territories were uncovered for 11 weeks. Top performers held their win rate; the variance is entirely coverage-driven.',
+        chartType: 'bar',
+        chartData: {
+          labels: ['K. Torres','M. Singh','J. Park','A. Davis','(Vacant 1)','(Vacant 2)','R. Patel','C. Liu'],
+          datasets: [
+            { label:'Q3', data:[44,41,38,42,39,37,40,43], backgroundColor:'rgba(78,121,167,.55)', borderRadius:2 },
+            { label:'Q4', data:[42,40,37,39,0,0,38,41], backgroundColor: ['#4E79A7','#4E79A7','#4E79A7','#4E79A7','#C63A3A','#C63A3A','#4E79A7','#4E79A7'], borderRadius:2 }
+          ]
+        },
+        chartOpts: { indexAxis:'y', scales:{ x:{ ticks:{ callback:v=>v+'%' }, max:60 } } }
+      },
+      {
+        title: 'Discount Approval Cycle — Policy Change Impact',
+        meta: 'Average days from submission to approval · rolling 4-week avg',
+        obs: 'The Sept 18 policy change tripled approval cycle time from 4 to 16 days. Deal slippage followed with a 12-day lag — exactly matching the average enterprise sales cycle delta. Reverting or streamlining the policy is the highest-ROI single action.',
+        chartType: 'line',
+        chartData: {
+          labels: ['W35','W36','W37','W38','W39','W40','W41','W42','W43','W44','W45','W46','W47','W48'],
+          datasets: [
+            { label:'Approval Cycle (days)', data:[4.1,4.0,4.2,4.1,9.8,14.2,15.8,16.1,16.4,15.9,16.2,16.0,15.8,16.1],
+              borderColor:'#E8711B', backgroundColor:'rgba(232,113,27,.12)', fill:true, borderWidth:2.5, tension:.3, pointRadius:3,
+              pointBackgroundColor: (ctx) => ctx.dataIndex >= 4 ? '#E8711B' : '#aaa' },
+            { label:'Plan (4 days)', data:Array(14).fill(4),
+              borderColor:'#A0A0A0', borderDash:[5,4], borderWidth:1.5, pointRadius:0 }
+          ]
+        },
+        chartOpts: { scales:{ y:{ ticks:{ callback:v=>v+'d' }, suggestedMax:20 } } }
+      }
+    ],
+    extras: ['Pipeline creation trend — Q3 vs Q4','Renewal conversion rate by account age','Discount approval backlog — current snapshot']
+  },
+
+  finance: {
+    headline: 'FP&A variance deep-dive · Revenue miss decomposition',
+    steps: [
+      {
+        title: 'Revenue vs Budget — Variance by BU',
+        meta: 'FY 2024 actuals vs annual operating plan',
+        obs: 'NA Enterprise software is responsible for $3.8M of the $5.2M revenue miss (73%). All other business units are within ±4% of plan — this is not a broad miss, it is concentrated.',
+        chartType: 'bar',
+        chartData: {
+          labels: ['NA Enterprise','EMEA Comm.','APAC','Latin Am.','Mid-Market','SMB'],
+          datasets: [
+            { label:'Budget', data:[21.4,12.1,8.3,3.5,9.8,4.2], backgroundColor:'rgba(31,118,180,.25)', borderRadius:2 },
+            { label:'Actual', data:[17.6,11.9,8.7,3.3,9.5,4.4], backgroundColor:['#C63A3A','#4E79A7','#59A14F','#4E79A7','#4E79A7','#59A14F'], borderRadius:2 }
+          ]
+        },
+        chartOpts: { scales:{ y:{ ticks:{ callback:v=>'$'+v+'M' } } } }
+      },
+      {
+        title: 'Gross Margin Trend — H1 vs H2',
+        meta: 'Quarterly gross margin % · Services mix overlay',
+        obs: 'Gross margin compressed 3.4 pts in H2. Services mix grew from 28% to 34% of revenue — each point of mix shift costs approximately 40 bps of gross margin. The trajectory is structural unless software growth accelerates.',
+        chartType: 'line',
+        chartData: {
+          labels: ['Q1 23','Q2 23','Q3 23','Q4 23','Q1 24','Q2 24','Q3 24','Q4 24'],
+          datasets: [
+            { label:'Gross Margin %', data:[68.2,67.8,67.1,66.9,66.4,65.8,64.2,63.8],
+              borderColor:'#1F76B4', borderWidth:2.5, tension:.3, fill:false, yAxisID:'y' },
+            { label:'Services Mix %', data:[24,25,26,27,28,30,32,34],
+              borderColor:'#F28E2B', borderDash:[5,3], borderWidth:2, tension:.3, fill:false, yAxisID:'y1' }
+          ]
+        },
+        chartOpts: {
+          scales:{
+            y:{ position:'left', ticks:{ callback:v=>v+'%' }, min:60, suggestedMax:72 },
+            y1:{ position:'right', ticks:{ callback:v=>v+'%' }, grid:{display:false} }
+          }
+        }
+      },
+      {
+        title: 'Software vs Services Revenue Growth',
+        meta: 'YoY growth rate by product line · FY2022–2024',
+        obs: 'Software is declining while services is growing every year. At this trajectory, services will represent 40%+ of revenue by end of FY25 — a structural margin headwind unless addressed in the pricing or go-to-market model.',
+        chartType: 'bar',
+        chartData: {
+          labels: ['FY 2022','FY 2023','FY 2024'],
+          datasets: [
+            { label:'Software', data:[18,12,-7], backgroundColor:['#1F76B4','#1F76B4','#C63A3A'], borderRadius:3 },
+            { label:'Services', data:[8,14,18], backgroundColor:'#59A14F', borderRadius:3 }
+          ]
+        },
+        chartOpts: { scales:{ y:{ ticks:{ callback:v=>v+'%' } } } }
+      },
+      {
+        title: 'OPEX Variance by Cost Center',
+        meta: 'Actual vs budget · FY 2024 full year',
+        obs: 'Engineering is $2.1M over plan due to delayed attrition — 18 positions that were forecast to turn over did not. This is a manageable offset if revenue recovers, but compounds the margin miss in a low-revenue scenario.',
+        chartType: 'bar',
+        chartData: {
+          labels: ['Engineering','Sales','Marketing','G&A','R&D','Support'],
+          datasets: [{
+            label:'Variance vs Budget ($M)', data:[2.1,-0.3,0.4,-0.1,0.8,-0.5], borderRadius:3,
+            backgroundColor:['#C63A3A','#59A14F','#E8711B','#59A14F','#E8711B','#59A14F']
+          }]
+        },
+        chartOpts: { scales:{ y:{ ticks:{ callback:v=>(v>=0?'+':'')+v+'M' } } } }
+      }
+    ],
+    extras: ['FY25 margin model under 3 mix-shift scenarios','Headcount attrition probability by department','Software renewal rate trend — last 8 quarters']
+  },
+
+  healthcare: {
+    headline: 'Clinical operations analysis · Facility B deep-dive',
+    steps: [
+      {
+        title: 'ALOS by Week — Facility B vs Network',
+        meta: 'Average Length of Stay (days) · rolling 4-week avg',
+        obs: 'ALOS at Facility B began rising in Week 38 — exactly 1 week after the staffing model change took effect. Facilities A/C/D show no change across the same period. The correlation is direct and facility-specific.',
+        chartType: 'line',
+        chartData: {
+          labels: ['W34','W35','W36','W37','W38','W39','W40','W41','W42','W43','W44','W45','W46','W47'],
+          datasets: [
+            { label:'Facility B', data:[4.1,4.2,4.1,4.0,4.4,5.1,5.6,5.8,5.9,6.0,5.9,6.1,5.8,6.0],
+              borderColor:'#C63A3A', backgroundColor:'rgba(198,58,58,.1)', fill:true, borderWidth:2.5, tension:.3,
+              pointRadius: (ctx) => ctx.dataIndex >= 4 ? 3 : 0 },
+            { label:'Network Avg', data:[4.0,4.1,4.0,4.1,4.0,4.1,4.0,4.2,4.1,4.0,4.1,4.0,4.1,4.0],
+              borderColor:'#A0A0A0', borderDash:[5,4], borderWidth:1.5, tension:.3, pointRadius:0 }
+          ]
+        },
+        chartOpts: { scales:{ y:{ ticks:{ callback:v=>v+'d' }, suggestedMin:3 } } }
+      },
+      {
+        title: 'Readmission Rate by Discharge Day of Week',
+        meta: 'Avoidable readmissions · 30-day window · all case types',
+        obs: 'Friday and Saturday discharges have 3× the readmission rate of Monday discharges. Weekend discharge planning coverage (reduced from 7 to 5 days) is the primary structural driver — not patient acuity.',
+        chartType: 'bar',
+        chartData: {
+          labels: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+          datasets: [{
+            label:'Readmission Rate (%)', data:[6.8,7.1,7.4,7.8,18.2,21.4,14.6], borderRadius:3,
+            backgroundColor:['#59A14F','#59A14F','#59A14F','#59A14F','#C63A3A','#C63A3A','#E8711B']
+          }]
+        },
+        chartOpts: { scales:{ y:{ ticks:{ callback:v=>v+'%' }, suggestedMax:25 } } }
+      },
+      {
+        title: 'Post-Discharge Follow-Up Call Completion',
+        meta: 'Weekly call completion rate · Facility B',
+        obs: 'Completion rate dropped from 84% to 46% — a 38-point collapse — immediately after coverage reduced to 5 days/week. Literature supports that each 10-pt improvement in call completion reduces avoidable readmissions by ~7%.',
+        chartType: 'line',
+        chartData: {
+          labels: ['W34','W35','W36','W37','W38','W39','W40','W41','W42','W43','W44','W45'],
+          datasets: [
+            { label:'Call Completion %', data:[84,83,85,84,72,61,54,49,47,46,48,46],
+              borderColor:'#7B5EA7', backgroundColor:'rgba(123,94,167,.1)', fill:true, borderWidth:2.5, tension:.3 },
+            { label:'Target (80%)', data:Array(12).fill(80),
+              borderColor:'#A0A0A0', borderDash:[5,4], borderWidth:1.5, pointRadius:0 }
+          ]
+        },
+        chartOpts: { scales:{ y:{ ticks:{ callback:v=>v+'%' }, suggestedMin:30, suggestedMax:100 } } }
+      },
+      {
+        title: 'CMS Penalty Threshold Proximity',
+        meta: 'Readmission rate vs CMS 12.0% penalty threshold',
+        obs: 'Current rate is 11.4% — just 0.6 pts below the CMS penalty threshold. At the current weekly trajectory (+0.15 pts/week), the threshold will be breached in approximately 4 weeks. Penalty exposure: $1.1M annually.',
+        chartType: 'bar',
+        chartData: {
+          labels: ['Q1 2024','Q2 2024','Q3 2024','Q4 2024 (now)','Q4 Proj. (no action)'],
+          datasets: [
+            { label:'Readmission Rate %', data:[8.2,8.5,8.8,11.4,12.6], borderRadius:3,
+              backgroundColor:['#59A14F','#59A14F','#E8711B','#C63A3A','#8B0000'] }
+          ]
+        },
+        chartOpts: {
+          scales:{ y:{ ticks:{ callback:v=>v+'%' }, suggestedMax:15 } },
+          plugins:{ annotation:{
+            annotations:{ threshold:{ type:'line', yMin:12, yMax:12,
+              borderColor:'#FF0000', borderWidth:1.5, borderDash:[5,3] } }
+          }}
+        }
+      }
+    ],
+    extras: ['Patient acuity score trend — cardiac cohort','Staffing hours vs ALOS by shift','Payer mix shift analysis — does it confound ALOS?']
+  },
+
+  retail: {
+    headline: 'Online channel analysis · Stockout impact investigation',
+    steps: [
+      {
+        title: 'Online Conversion Rate — Weekly Trend',
+        meta: 'Online channel only · all devices · Q3–Q4 2024',
+        obs: 'Conversion collapsed on Oct 12 — the exact date the first of 3 SKUs went out of stock. The drop is immediate and sustained, with no recovery while OOS conditions persist. Traffic did not cause this.',
+        chartType: 'line',
+        chartData: {
+          labels: ['W35','W36','W37','W38','W39','W40','W41','W42','W43','W44','W45','W46','W47','W48'],
+          datasets: [
+            { label:'Conversion Rate %', data:[3.8,3.9,3.8,3.7,3.8,2.9,2.7,2.8,2.9,2.8,2.7,2.9,2.8,2.9],
+              borderColor:'#1F76B4', backgroundColor:'rgba(31,118,180,.1)', fill:true, borderWidth:2.5, tension:.3,
+              segment:{ borderColor: ctx => ctx.p0DataIndex >= 5 ? '#C63A3A' : '#1F76B4', backgroundColor: ctx => ctx.p0DataIndex >= 5 ? 'rgba(198,58,58,.1)' : 'rgba(31,118,180,.08)' } },
+            { label:'Traffic Index', data:[98,100,99,101,100,102,101,103,100,102,101,103,102,104],
+              borderColor:'#59A14F', borderDash:[5,3], borderWidth:1.5, tension:.3, pointRadius:0, yAxisID:'y1' }
+          ]
+        },
+        chartOpts: {
+          scales:{
+            y:{ position:'left', ticks:{ callback:v=>v+'%' }, min:2, max:5 },
+            y1:{ position:'right', ticks:{ callback:v=>v }, grid:{display:false}, min:90 }
+          }
+        }
+      },
+      {
+        title: 'SKU Stockout Rate vs Conversion Impact',
+        meta: 'Top 5 online SKUs by revenue · OOS rate and session outcome',
+        obs: 'The 3 affected SKUs have 35–42% OOS rates. Substitute SKU conversion is only 12% — 88% of those sessions abandon entirely. The substitute products are not close enough in perceived value to retain the customer.',
+        chartType: 'bar',
+        chartData: {
+          labels: ['SKU-A881','SKU-B224','SKU-C091','SKU-D445','SKU-E110'],
+          datasets: [
+            { label:'OOS Rate %', data:[42,38,35,4,2], backgroundColor:['#C63A3A','#C63A3A','#C63A3A','#59A14F','#59A14F'], borderRadius:3 },
+            { label:'Conv. Rate %', data:[0.4,0.5,0.7,3.9,4.1], backgroundColor:['rgba(198,58,58,.3)','rgba(198,58,58,.3)','rgba(198,58,58,.3)','rgba(89,161,79,.3)','rgba(89,161,79,.3)'], borderRadius:3 }
+          ]
+        },
+        chartOpts: { scales:{ y:{ ticks:{ callback:v=>v+'%' }, suggestedMax:50 } } }
+      },
+      {
+        title: 'Channel Comparison: Online vs In-Store',
+        meta: 'Revenue indexed to Q3 baseline = 100 · weekly',
+        obs: 'In-store revenue held flat (index 98–103) while online declined to index 76. This confirms the issue is supply-chain driven, not demand-driven — customers still want the products, they just cannot get them online.',
+        chartType: 'line',
+        chartData: {
+          labels: ['W38','W39','W40','W41','W42','W43','W44','W45','W46','W47','W48'],
+          datasets: [
+            { label:'Online (index)', data:[100,101,78,74,76,75,74,77,76,75,77],
+              borderColor:'#C63A3A', backgroundColor:'rgba(198,58,58,.1)', fill:true, borderWidth:2.5, tension:.3 },
+            { label:'In-Store (index)', data:[100,99,101,100,98,102,100,101,99,103,101],
+              borderColor:'#59A14F', borderWidth:1.5, tension:.3, fill:false, pointRadius:2 }
+          ]
+        },
+        chartOpts: { scales:{ y:{ ticks:{ callback:v=>v }, suggestedMin:65, suggestedMax:110 } } }
+      },
+      {
+        title: 'Customer Retention After Stockout Event',
+        meta: '14-day repurchase behavior · affected customers (n=1,840)',
+        obs: '35% of stockout-affected customers made their next purchase from a competitor within 14 days. Win-back CAC is estimated at $48 vs $12 organic retention cost — a 4× premium. Early proactive outreach (within 3 days) reduces competitor capture to ~18%.',
+        chartType: 'bar',
+        chartData: {
+          labels: ['Waited for restock','Bought substitute','Bought from competitor','No further activity'],
+          datasets: [{
+            label:'% of affected customers', data:[28,22,35,15], borderRadius:3,
+            backgroundColor:['#59A14F','#4E79A7','#C63A3A','#A0A0A0']
+          }]
+        },
+        chartOpts: { indexAxis:'y', scales:{ x:{ ticks:{ callback:v=>v+'%' }, max:45 } } }
+      }
+    ],
+    extras: ['SKUs at risk of stockout entering Q1 (reorder model)','Win-back email segment — highest-value churned customers','Price elasticity — would a discount recover conversion?']
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────────────────────
+let industry = 'sales';
+let panelOpen = false;
+let invRunning = false;
+let playRunning = false;
+let playCharts = [];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHART INIT
+// ─────────────────────────────────────────────────────────────────────────────
+function initCharts() {
+  // Trend
+  new Chart(document.getElementById('cTrend'), {
+    type:'line',
+    data:{
+      labels: MONTHS,
+      datasets:[
+        { label:'FY 2024', data: SALES_24,
+          borderColor:'#1F76B4', backgroundColor:'rgba(31,118,180,.1)',
+          borderWidth:2.5, tension:.35, fill:true,
+          pointRadius: SALES_24.map((_,i)=> i>=9?5:3),
+          pointBackgroundColor: SALES_24.map((_,i)=> i>=9?'#C63A3A':'#1F76B4'),
+          pointBorderColor: SALES_24.map((_,i)=> i>=9?'#C63A3A':'#1F76B4') },
+        { label:'FY 2023', data: SALES_23,
+          borderColor:'#C0C0C0', borderDash:[5,4], borderWidth:1.5,
+          tension:.35, fill:false, pointRadius:0 }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ boxWidth:12, font:{size:11}, padding:10 } },
+                tooltip:{ callbacks:{ label: c=>' $'+c.parsed.y+'K' } } },
+      scales:{
+        x:{ grid:{display:false}, ticks:{font:{size:10}} },
+        y:{ min:150, grid:{color:'#F0F0F0'}, ticks:{font:{size:10}, callback:v=>'$'+v+'K'} }
+      }
+    }
+  });
+
+  // Region
+  new Chart(document.getElementById('cRegion'), {
+    type:'bar',
+    data:{
+      labels:['North America','Europe','APAC','Latin America'],
+      datasets:[
+        { label:'FY 2024', data:[18.5,12.3,8.7,3.2],
+          backgroundColor:['#C63A3A','#1F76B4','#3E9C9C','#4E79A7'], borderRadius:2 },
+        { label:'FY 2023', data:[21.4,12.1,8.3,3.5],
+          backgroundColor:['rgba(200,58,58,.28)','rgba(31,118,180,.28)','rgba(62,156,156,.28)','rgba(78,121,167,.28)'], borderRadius:2 }
+      ]
+    },
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ boxWidth:10, font:{size:10} } },
+                tooltip:{ callbacks:{ label: c=>' $'+c.parsed.x+'M' } } },
+      scales:{
+        x:{ grid:{color:'#F0F0F0'}, ticks:{font:{size:10}, callback:v=>'$'+v+'M'} },
+        y:{ grid:{display:false}, ticks:{font:{size:10}} }
+      }
+    }
+  });
+
+  // Segment donut
+  new Chart(document.getElementById('cSegment'), {
+    type:'doughnut',
+    data:{
+      labels:['Enterprise','Mid-Market','SMB'],
+      datasets:[{ data:[52,31,17], backgroundColor:['#C63A3A','#F28E2B','#59A14F'], borderWidth:0, hoverOffset:4 }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, cutout:'65%',
+      plugins:{
+        legend:{ position:'bottom', labels:{ boxWidth:10, font:{size:10}, padding:8,
+          generateLabels: ch => ch.data.labels.map((l,i)=>({
+            text: l+': '+ch.data.datasets[0].data[i]+'%',
+            fillStyle: ch.data.datasets[0].backgroundColor[i], strokeStyle:'transparent', index:i
+          }))
+        } },
+        tooltip:{ callbacks:{ label: c=>' '+c.label+': '+c.parsed+'%' } }
+      }
+    }
+  });
+
+  // Win rate
+  new Chart(document.getElementById('cWinrate'), {
+    type:'bar',
+    data:{
+      labels:['Q1','Q2','Q3','Q4'],
+      datasets:[
+        { type:'bar', label:'Win Rate %', data:[41,43,40,31],
+          backgroundColor:['#1F76B4','#1F76B4','#1F76B4','#C63A3A'], borderRadius:3, yAxisID:'y' },
+        { type:'line', label:'Pipeline Coverage', data:[3.2,3.5,3.3,2.1],
+          borderColor:'#F28E2B', borderWidth:2, pointRadius:4, tension:.2, yAxisID:'y1' }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ boxWidth:10, font:{size:10} } } },
+      scales:{
+        y:{ position:'left', ticks:{font:{size:10}, callback:v=>v+'%'}, grid:{color:'#F5F5F5'} },
+        y1:{ position:'right', ticks:{font:{size:10}, callback:v=>v+'x'}, grid:{display:false} },
+        x:{ grid:{display:false}, ticks:{font:{size:10}} }
+      }
+    }
+  });
+
+  // Product mix
+  new Chart(document.getElementById('cProduct'), {
+    type:'bar',
+    data:{
+      labels:['Software Licenses','Pro Services','Support & Maint.','Cloud Subscriptions'],
+      datasets:[{ data:[38,22,18,22], backgroundColor:['#4E79A7','#F28E2B','#76B7B2','#59A14F'], borderRadius:3 }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false} },
+      scales:{
+        y:{ grid:{color:'#F5F5F5'}, ticks:{font:{size:10}, callback:v=>v+'%'} },
+        x:{ grid:{display:false}, ticks:{font:{size:9}, maxRotation:20} }
+      }
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WHYLAB TOGGLE
+// ─────────────────────────────────────────────────────────────────────────────
+function toggleWhyLab() {
+  panelOpen = !panelOpen;
+  document.getElementById('wlPanel').classList.toggle('open', panelOpen);
+  if (panelOpen && !invRunning) setTimeout(startInv, 700);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INDUSTRY SWITCH
+// ─────────────────────────────────────────────────────────────────────────────
+function switchDashSeg(ind, btn) {
+  industry = ind;
+  document.querySelectorAll('.seg-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  syncPanelPills();
+}
+
+function switchPanelInd(ind, btn) {
+  industry = ind;
+  document.querySelectorAll('.ind-pill').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  syncDashBtns();
+  document.getElementById('wlInput').value = INV[industry].q;
+  resetInvestigation();
+}
+
+function syncPanelPills() {
+  document.querySelectorAll('.ind-pill').forEach(b => {
+    b.classList.toggle('active', b.id === 'pill-'+industry);
+  });
+  document.getElementById('wlInput').value = INV[industry].q;
+}
+
+function syncDashBtns() {
+  document.querySelectorAll('.seg-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.toLowerCase() === industry);
+  });
+}
+
+function resetInvestigation() {
+  invRunning = false;
+  playRunning = false;
+  playCharts.forEach(c => { try { c.destroy(); } catch(e){} });
+  playCharts = [];
+  document.getElementById('wlScroll').innerHTML = `
+    <div class="empty-state">
+      <div class="empty-icon">🔍</div>
+      <div class="empty-title">${industry.charAt(0).toUpperCase()+industry.slice(1)} Analysis Ready</div>
+      <div class="empty-body">Click <strong>Ask</strong> to start an AI-powered 5-Whys root cause investigation in the <strong>${industry}</strong> context.</div>
+    </div>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PLAYGROUND ENGINE
+// ─────────────────────────────────────────────────────────────────────────────
+async function startPlayground() {
+  if (playRunning) return;
+  playRunning = true;
+
+  // Destroy any prior playground charts
+  playCharts.forEach(c => { try { c.destroy(); } catch(e){} });
+  playCharts = [];
+
+  const sc = document.getElementById('wlScroll');
+  const data = PLAY[industry];
+
+  // Loading state
+  sc.innerHTML = `
+    <div style="padding:16px">
+      <div class="ctx-banner"><strong>🧪 ${data.headline}</strong>Pulling context from your 5-Whys investigation…</div>
+      <div style="padding:10px 0">
+        <div class="ld"><span></span><span></span><span></span></div>
+        <div style="font-size:12px;color:var(--text-3)">Generating private analysis workspace…</div>
+      </div>
+    </div>`;
+  await sleep(1200);
+
+  // Build scaffold
+  sc.innerHTML = `
+    <div class="pg-toolbar">
+      <span>🔒</span>
+      <strong>Private Playground</strong>
+      <span style="color:#A0A0A0">·</span>
+      <span>${data.headline}</span>
+      <span style="flex:1"></span>
+      <button class="pg-add-btn" onclick="playRunning=false;startPlayground()">↺ Re-run</button>
+    </div>
+    <div class="pg-body" id="pgBody">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">
+        <div class="ld"><span></span><span></span><span></span></div>
+        <span style="font-size:12px;color:var(--text-3)">Building charts…</span>
+      </div>
+    </div>`;
+  await sleep(600);
+
+  const body = document.getElementById('pgBody');
+  body.innerHTML = '';
+
+  for (let i = 0; i < data.steps.length; i++) {
+    const s = data.steps[i];
+    const cid = 'pg-c-' + i;
+
+    const card = document.createElement('div');
+    card.className = 'pg-card';
+    card.innerHTML = `
+      <div class="pg-card-hdr">
+        <div>
+          <div class="pg-card-title">${s.title}</div>
+          <div class="pg-card-meta">${s.meta}</div>
+        </div>
+        <div class="pg-card-actions">
+          <button class="pg-add-btn" onclick="showToast('Chart saved to notes')">📌</button>
+          <button class="pg-add-btn" onclick="showToast('Promoted to 5-Whys comment')">↗</button>
+        </div>
+      </div>
+      <div class="pg-canvas-wrap"><div style="position:relative;height:130px"><canvas id="${cid}"></canvas></div></div>
+      <div class="pg-obs">
+        <div class="pg-obs-lbl">🤖 AI Observation</div>
+        <div id="pg-obs-${i}"></div>
+      </div>
+      <div class="pg-actions">
+        <button class="pg-add-btn hi" onclick="pinInsightText('${cid}','${escAttr(s.title)}')">📌 Pin finding</button>
+        <button class="pg-add-btn" onclick="showToast('Drill-down opened')">🔍 Drill down</button>
+        <button class="pg-add-btn" onclick="showToast('Exported to clipboard')">↗ Export</button>
+      </div>`;
+
+    body.appendChild(card);
+    await sleep(60);
+    card.classList.add('show');
+    sc.scrollTop = sc.scrollHeight;
+
+    // Render chart
+    const ctx = document.getElementById(cid).getContext('2d');
+    const baseOpts = {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 600 },
+      plugins: { legend: { labels: { boxWidth: 10, font: { size: 10 }, padding: 8 } }, tooltip: { bodyFont: { size: 11 } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 30 } },
+        y: { grid: { color: '#F0F0F0' }, ticks: { font: { size: 9 } } }
+      }
+    };
+    const mergedOpts = deepMerge(baseOpts, s.chartOpts || {});
+    const ch = new Chart(ctx, { type: s.chartType, data: s.chartData, options: mergedOpts });
+    playCharts.push(ch);
+
+    await sleep(400);
+    // Type out observation
+    await typeText('pg-obs-'+i, s.obs, 10);
+    await sleep(350);
+  }
+
+  // More explorations
+  const moreDiv = document.createElement('div');
+  moreDiv.className = 'pg-more';
+  moreDiv.innerHTML = `
+    <div class="pg-more-label">Add more explorations</div>
+    ${data.extras.map(q=>`<button class="sug-q" onclick="showToast('Generating: ${escAttr(q)}')">+ ${q}</button>`).join('')}
+    <div style="height:12px"></div>`;
+  body.appendChild(moreDiv);
+  sc.scrollTop = sc.scrollHeight;
+}
+
+function deepMerge(target, source) {
+  const out = Object.assign({}, target);
+  for (const k of Object.keys(source)) {
+    if (source[k] && typeof source[k] === 'object' && !Array.isArray(source[k])) {
+      out[k] = deepMerge(target[k] || {}, source[k]);
+    } else {
+      out[k] = source[k];
+    }
+  }
+  return out;
+}
+
+function escAttr(s) { return s.replace(/'/g, '\\\''); }
+
+function pinInsightText(cid, title) {
+  const list = document.getElementById('pinnedList');
+  const item = document.createElement('div');
+  item.className = 'pinned-item';
+  item.innerHTML = `<span style="flex-shrink:0">📌</span><span><strong>${title}</strong> — pinned from Playground</span>`;
+  list.appendChild(item);
+  showToast('Chart insight pinned to your private notes');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TABS
+// ─────────────────────────────────────────────────────────────────────────────
+function switchTab(tab, btn) {
+  document.querySelectorAll('.wl-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const sc = document.getElementById('wlScroll');
+
+  if (tab === 'inv') {
+    if (!invRunning) resetInvestigation();
+    return;
+  }
+
+  if (tab === 'play') {
+    startPlayground();
+    return;
+  }
+
+  if (tab === 'hist') {
+    const items = [
+      { d:'Today 8:41 AM',      q:'Why did sales decline in Q4 2024?',          tag:'Sales' },
+      { d:'Yesterday 3:22 PM',  q:'Why did the West region underperform?',       tag:'Sales' },
+      { d:'Jun 26, 2:10 PM',    q:'Why did win rate drop in Q4?',                tag:'Sales' },
+      { d:'Jun 24, 9:05 AM',    q:'Why did gross margin compress in H2?',        tag:'Finance' },
+      { d:'Jun 20, 11:30 AM',   q:'Why did average length of stay increase?',   tag:'Healthcare' },
+      { d:'Jun 18, 4:15 PM',    q:'Why did online conversion drop in Q4?',      tag:'Retail' },
+    ];
+    sc.innerHTML = `
+      <div style="padding:16px">
+        <div style="font-size:12px;font-weight:700;color:var(--text-2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">Investigation History</div>
+        ${items.map(it=>`
+          <div style="padding:10px 12px;background:#fff;border:1px solid #E8E8E8;border-radius:4px;margin-bottom:6px;cursor:pointer"
+               onmouseover="this.style.background='#F8F9FA'" onmouseout="this.style.background='#fff'">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <span style="font-size:10.5px;background:#E8F2FA;color:var(--t-blue);padding:1px 7px;border-radius:3px;font-weight:700">${it.tag}</span>
+              <span style="font-size:10.5px;color:var(--text-3)">${it.d}</span>
+            </div>
+            <div style="font-size:12px">${it.q}</div>
+          </div>`).join('')}
+      </div>`;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INVESTIGATION ENGINE
+// ─────────────────────────────────────────────────────────────────────────────
+async function startInv() {
+  if (invRunning) return;
+  invRunning = true;
+  // Ensure investigation tab is active
+  document.querySelectorAll('.wl-tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-inv').classList.add('active');
+
+  const sc = document.getElementById('wlScroll');
+  const data = INV[industry];
+
+  // Loading
+  sc.innerHTML = `
+    <div style="padding:16px">
+      <div class="ctx-banner"><strong>📍 ${data.ctx}</strong>Scanning dashboard context and identifying anomalies…</div>
+      <div style="padding:10px 0">
+        <div class="ld"><span></span><span></span><span></span></div>
+        <div style="font-size:12px;color:var(--text-3)">AI is analyzing your data…</div>
+      </div>
+    </div>`;
+  await sleep(1400);
+
+  sc.innerHTML = `
+    <div style="padding:0">
+      <div class="ctx-banner" style="margin:12px 16px 0">
+        <strong>📍 ${data.ctx}</strong>
+        Significant anomaly confirmed. Running 5-Whys root cause investigation…
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-bg"><div class="progress-bar" id="pBar" style="width:0%"></div></div>
+      </div>
+      <div class="why-steps" id="wSteps"></div>
+      <div class="sug-wrap" id="sugWrap" style="display:none">
+        <div class="sug-label">Suggested next questions</div>
+      </div>
+    </div>`;
+
+  const steps = document.getElementById('wSteps');
+
+  for (let i = 0; i < data.steps.length; i++) {
+    const s = data.steps[i];
+    document.getElementById('pBar').style.width = (i / data.steps.length * 100)+'%';
+
+    const el = document.createElement('div');
+    el.className = 'why-step';
+    el.id = 'ws'+i;
+
+    const bodyClass = s.type === 'root' ? 'root' : s.type === 'causal' ? 'causal' : '';
+    const statHtml = s.stats.map(st => {
+      const cls = st.startsWith('+') ? 'pos' : st.startsWith('-') ? 'neg' : '';
+      return `<span class="why-stat ${cls}">${st}</span>`;
+    }).join('');
+
+    let evidenceHtml = '';
+    if (s.evidence) {
+      evidenceHtml = `
+        <div id="ev${i}" style="display:none">
+          <div class="ev-label obs">Observed Facts</div>
+          ${s.evidence.obs.map(e=>`<div class="ev-item">${e}</div>`).join('')}
+          <div class="ev-label like" style="margin-top:7px">Likely Drivers</div>
+          ${s.evidence.like.map(e=>`<div class="ev-item">${e}</div>`).join('')}
+          <div class="ev-label miss" style="margin-top:7px">What Data Is Missing</div>
+          ${s.evidence.miss.map(e=>`<div class="ev-item">${e}</div>`).join('')}
+        </div>`;
+    }
+
+    el.innerHTML = `
+      <div class="why-step-hdr">
+        <div class="why-num">${i+1}</div>
+        <div class="why-q">Why ${i+1}: ${s.q}</div>
+      </div>
+      <div class="why-body ${bodyClass}">
+        <div class="why-ans" id="wa${i}"></div>
+        <div id="ws-stats-${i}" style="display:none">${statHtml}</div>
+        ${evidenceHtml}
+      </div>`;
+
+    steps.appendChild(el);
+    await sleep(80);
+    el.classList.add('show');
+    sc.scrollTop = sc.scrollHeight;
+
+    await typeText('wa'+i, s.ans, 11);
+    await sleep(180);
+    document.getElementById('ws-stats-'+i).style.display = 'block';
+    if (s.evidence) {
+      await sleep(350);
+      document.getElementById('ev'+i).style.display = 'block';
+    }
+
+    if (i < data.steps.length - 1) await sleep(550);
+  }
+
+  document.getElementById('pBar').style.width = '100%';
+  await sleep(400);
+
+  const sugWrap = document.getElementById('sugWrap');
+  sugWrap.style.display = 'block';
+  data.sug.forEach(q => {
+    const btn = document.createElement('button');
+    btn.className = 'sug-q';
+    btn.textContent = '→ ' + q;
+    btn.onclick = () => {
+      document.getElementById('wlInput').value = q;
+      invRunning = false;
+      startInv();
+    };
+    sugWrap.appendChild(btn);
+  });
+  sc.scrollTop = sc.scrollHeight;
+
+  // Auto-fill notes if empty
+  const ta = document.getElementById('pNotesTA');
+  if (!ta.value) {
+    const noteDefaults = {
+      sales:      'Q4 decline ('+new Date().toLocaleDateString()+'): approval cycle + AE attrition + competitor pricing\nNext: review approval policy with RevOps, get list of at-risk Q1 renewals',
+      finance:    'FY24 miss: mix-shift (software↓, services↑) + NA Enterprise revenue\nNext: model FY25 guidance under 3 scenarios',
+      healthcare: 'ALOS/readmission spike at Facility B: weekend staffing cut\nNext: model ROI of restoring 7-day discharge planning',
+      retail:     'Online conversion drop: 3 SKU stockouts (OOS >35%)\nNext: fix reorder points for 34-day lead time, win-back churned customers',
+    };
+    ta.value = noteDefaults[industry] || '';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TYPING ANIMATION
+// ─────────────────────────────────────────────────────────────────────────────
+async function typeText(id, text, speed=13) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = '<span class="cur"></span>';
+  for (let i=0; i<text.length; i++) {
+    el.innerHTML = escHtml(text.substring(0,i+1))+'<span class="cur"></span>';
+    await sleep(speed);
+  }
+  el.innerHTML = escHtml(text);
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NOTES
+// ─────────────────────────────────────────────────────────────────────────────
+function pinInsight() {
+  const texts = {
+    sales:      'Enterprise renewal rate: 87% → 71%. Root causes: approval cycle delay, AE attrition, competitor pricing.',
+    finance:    'Revenue miss is mix-driven (software↓ / services↑), not volume. Structural margin headwind in FY25.',
+    healthcare: 'Readmission spike tied to Facility B weekend staffing reduction. CMS penalty threshold at risk.',
+    retail:     'Online conversion drop driven by 3 SKU stockouts. Reorder points must be updated for new 34-day lead time.',
+  };
+  const list = document.getElementById('pinnedList');
+  const item = document.createElement('div');
+  item.className = 'pinned-item';
+  item.innerHTML = `<span style="flex-shrink:0">📌</span><span>${texts[industry]}</span>`;
+  list.appendChild(item);
+  showToast('Insight pinned to your private notes');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TOAST
+// ─────────────────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = '✓ ' + msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', initCharts);
+</script>
+</body>
+</html>
